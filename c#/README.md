@@ -1,4 +1,4 @@
 ### HOWTO exec ON Mac
 
-mcs 00-helloworld.cs
-mono 00-helloworld.exe
+1. mcs 00-helloworld.cs
+2. mono 00-helloworld.exe
