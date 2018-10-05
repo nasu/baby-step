@@ -2,11 +2,22 @@ using System;
 
 namespace Foo
 {
-    public enum Animal
+    enum Animal
     {
         Cat,
+        [Name("いぬ")]
         Dog,
+        [Name("ねずみ")]
         Rat,
+    }
+    [AttributeUsage( AttributeTargets.Field )]
+    static class AnimalExtension
+    {
+        public static string Name(Animal a)
+        {
+            string[] names = { "ねこ", "いぬ", "ねずみ" };
+            return names[(int)a];
+        }
     }
     class Foo
     {
