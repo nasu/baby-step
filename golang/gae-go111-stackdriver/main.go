@@ -13,8 +13,7 @@ import (
 )
 
 func main() {
-	args := os.Args
-	prj := args[1]
+	prj := os.Getenv("PROJECT")
 	exporter, err := stackdriver.NewExporter(stackdriver.Options{
 		ProjectID: prj,
 		//BundleDelayThreshold: time.Second / 10,
