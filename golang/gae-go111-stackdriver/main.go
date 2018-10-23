@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"contrib.go.opencensus.io/exporter/stackdriver"
+	"contrib.go.opencensus.io/exporter/stackdriver/propagation"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/trace"
 )
@@ -32,17 +33,38 @@ func main() {
 
 func index(prj string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ctx, span := trace.StartSpan(context.Background(), "mysample")
-		span.Annotatef(nil, "start index page")
+		hf := &propagation.HTTPFormat{}
+		sc, ok := hf.SpanContextFromRequest(r)
+		if !ok {
+			fmt.Fprintf(w, "error propagation")
+		}
+		ctx, span := trace.StartSpanWithRemoteParent(r.Context(), "index", sc)
+		defer span.End()
+		process1(ctx)
+		process2(ctx)
 		longProcess(ctx)
 		fmt.Fprintf(w, "hello 2nd-gen")
-		span.Annotatef(nil, "end index page")
-		span.End()
 	}
 }
 
+func process1(ctx context.Context) {
+	_, span := trace.StartSpan(ctx, "index.process1")
+	span.Annotatef(nil, "start process1")
+	time.Sleep(time.Second * 1)
+	span.Annotatef(nil, "end process1")
+	span.End()
+}
+
+func process2(ctx context.Context) {
+	_, span := trace.StartSpan(ctx, "index.process2")
+	span.Annotatef(nil, "start process2")
+	time.Sleep(time.Second * 1)
+	span.Annotatef(nil, "end process2")
+	span.End()
+}
+
 func longProcess(ctx context.Context) {
-	span := trace.FromContext(ctx)
+	_, span := trace.StartSpan(ctx, "index.longProcess")
 	for i := 0; i < 10; i++ {
 		attrs := []trace.Attribute{
 			trace.StringAttribute("string", "foobar"),
@@ -52,4 +74,5 @@ func longProcess(ctx context.Context) {
 		span.Annotatef(attrs, fmt.Sprintf("count: %d", i))
 		time.Sleep(time.Second * 1)
 	}
+	span.End()
 }
