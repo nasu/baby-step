@@ -7,7 +7,7 @@ import (
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
 
-	log "github.dena.jp/Takasho/framework/log/v2"
+	log "github.com/nasu/baby-step/golang/gae-go111/log"
 )
 
 // zap に依存したテスト

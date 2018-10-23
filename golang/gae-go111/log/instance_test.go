@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	log "github.dena.jp/Takasho/framework/log/v2"
+	log "github.com/nasu/baby-step/golang/gae-go111/log"
 )
 
 func TestGetInstance(t *testing.T) {
