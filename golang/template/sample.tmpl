@@ -1,0 +1,22 @@
+{{- /* comment */ -}}
+String: {{ $.String }}
+Int: {{ $.Int }}
+Bool: {{ $.Bool }}
+Array:
+	{{ $.Array }}
+	{{ range $i, $v := $.Array }}{{ $v }}{{ end }}
+Var:
+	{{ $a := "a" }}{{ $a }}
+  {{ with $a := ("a" | func1) }}{{ $a }}{{ end }}
+Print:
+	{{ printf "%q" (print "out" "put") }}
+Template:
+	{{ template "sample2.tmpl" }}
+	{{ template "sample2.tmpl" $ }}
+	{{ template "sample2.tmpl" $a }}
+	{{ with $b := "b" }}{{ template "sample2.tmpl" $b }}{{ end }}
+	{{ with $ := $a }}{{ template "sample2.tmpl" $ }}{{ end }}
+	{{ template "sample2.tmpl" $ }}{{/* not overwritten */}}
+	{{ with $ = $a }}{{ template "sample2.tmpl" $ }}{{ end }}
+	{{ template "sample2.tmpl" $ }}{{/* overwritten */}}
+	{{ template "sample2.tmpl" "aa" }}
