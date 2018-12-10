@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/nasu/baby-step/golang/redis/goredis"
 	"github.com/nasu/baby-step/golang/redis/redigo"
@@ -17,8 +18,12 @@ const (
 func main() {
 	args := os.Args
 	addr := args[1]
+	s := time.Now()
 	redigo.ExampleTransaction(addr, looper)
+	log.Println("redigo:", time.Now().Sub(s))
+	s = time.Now()
 	goredis.ExampleTransaction(addr, looper)
+	log.Println("goredis:", time.Now().Sub(s))
 }
 
 func looper(name string, f func() error) {
