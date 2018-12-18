@@ -28,6 +28,7 @@ var Singers = []Singer{
 	},
 }
 
+// これテストで走らせるとまともに動いてない。argsのいちがずれるので
 func prepare() (context.Context, *spanner.Client) {
 	args := os.Args
 	ctx := context.Background()
