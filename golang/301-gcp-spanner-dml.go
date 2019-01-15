@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"./spanner_dml"
+	"github.com/nasu/baby-step/spanner_dml"
 
 	"cloud.google.com/go/spanner"
 )
