@@ -4,33 +4,34 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"cloud.google.com/go/spanner"
 	"google.golang.org/api/iterator"
 )
 
 type Singer struct {
-	SingerId  string
-	FirstName string
-	LastName  string
-	LikeNum   int64
-	Albums    []*Album
+	SingerId   int64
+	FirstName  string
+	LastName   string
+	BirthDate  time.Time
+	SingerInfo []byte
+	Albums     []*Album
 }
 
 type Album struct {
-	SingerId    string
+	SingerId    int64
 	AlbumId     int64
-	Name        string
+	Name        string `spanner:"AlbumTitle"`
 	SalesAmount int64
 }
 
 type SingerAndAlbum struct {
-	SingerId    string
+	SingerId    int64
 	FirstName   string
 	LastName    string
-	LikeNum     int64
 	AlbumId     int64
-	Name        string
+	Name        string `spanner:"AlbumTitle"`
 	SalesAmount int64
 }
 
@@ -53,22 +54,22 @@ func main() {
 
 	fmt.Println("===== FLATTEN")
 	for _, model := range SelectFlatten(ctx, ro) {
-		fmt.Println(model.FirstName, model.LastName, model.AlbumId, model.Name, model.SalesAmount)
+		fmt.Println(model.FirstName, model.AlbumId, model.Name)
 	}
 
 	fmt.Println("")
 	fmt.Println("===== ARRAY<STRUCT>")
 	for _, model := range SelectWithArrayStruct(ctx, ro) {
-		fmt.Println(model.FirstName, model.LastName)
+		fmt.Println(model.FirstName)
 		for _, album := range model.Albums {
-			fmt.Println("    ", album.AlbumId, album.Name, album.SalesAmount)
+			fmt.Println("    ", album.AlbumId, album.Name)
 		}
 	}
 }
 
 func SelectWithArrayStruct(ctx context.Context, ro *spanner.ReadOnlyTransaction) []*Singer {
 	stmt := spanner.Statement{
-		SQL: `SELECT s.*, ARRAY(SELECT As STRUCT a.* FROM Albums a WHERE a.SingerId = s.SingerId) FROM Singers s`,
+		SQL: `SELECT s.SingerId, s.FirstName, ARRAY(SELECT As STRUCT a.AlbumId, a.AlbumTitle FROM Albums a WHERE a.SingerId = s.SingerId) FROM Singers s`,
 	}
 	iter := ro.Query(ctx, stmt)
 	var models []*Singer
@@ -82,7 +83,11 @@ func SelectWithArrayStruct(ctx context.Context, ro *spanner.ReadOnlyTransaction)
 		}
 
 		model := &Singer{}
-		if err := row.Columns(&model.SingerId, &model.FirstName, &model.LastName, &model.LikeNum, &model.Albums); err != nil {
+		/* error
+		   var s []interface{}{}
+		   if err := row.Columns(&model.SingerId, &model.FirstName, &s); err != nil {
+		*/
+		if err := row.Columns(&model.SingerId, &model.FirstName, &model.Albums); err != nil {
 			panic(err)
 		}
 		models = append(models, model)
@@ -92,7 +97,7 @@ func SelectWithArrayStruct(ctx context.Context, ro *spanner.ReadOnlyTransaction)
 
 func SelectFlatten(ctx context.Context, ro *spanner.ReadOnlyTransaction) []*SingerAndAlbum {
 	stmt := spanner.Statement{
-		SQL: `SELECT * FROM Singers s JOIN Albums a USING(SingerId)`,
+		SQL: `SELECT s.SingerId, s.FirstName, a.AlbumTitle FROM Singers s JOIN Albums a USING(SingerId)`,
 	}
 	iter := ro.Query(ctx, stmt)
 	var models []*SingerAndAlbum
@@ -106,7 +111,53 @@ func SelectFlatten(ctx context.Context, ro *spanner.ReadOnlyTransaction) []*Sing
 		}
 
 		model := &SingerAndAlbum{}
-		if err := row.Columns(&model.SingerId, &model.FirstName, &model.LastName, &model.LikeNum, &model.Name, &model.SalesAmount, &model.AlbumId); err != nil {
+		if err := row.Columns(&model.SingerId, &model.FirstName, &model.Name); err != nil {
+			panic(err)
+		}
+		models = append(models, model)
+	}
+	return models
+}
+
+func SelectWithArrayStructOnly(ctx context.Context, ro *spanner.ReadOnlyTransaction) []*Singer {
+	stmt := spanner.Statement{
+		SQL: `SELECT ARRAY(SELECT As STRUCT s.* FROM Singers s)`,
+	}
+	iter := ro.Query(ctx, stmt)
+	var models []*Singer
+	for {
+		row, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			panic(err)
+		}
+
+		if err := row.Columns(&models); err != nil {
+			panic(err)
+		}
+	}
+	return models
+}
+
+func SelectSimple(ctx context.Context, ro *spanner.ReadOnlyTransaction) []*Singer {
+	stmt := spanner.Statement{
+		SQL: `SELECT SingerId, FirstName, LastName, BirthDate, SingerInfo FROM Singers`,
+	}
+	iter := ro.Query(ctx, stmt)
+	var models []*Singer
+	for {
+		row, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			panic(err)
+		}
+
+		model := &Singer{}
+		if err := row.Columns(&model.SingerId, &model.FirstName, &model.LastName, &model.BirthDate, &model.SingerInfo); err != nil {
 			panic(err)
 		}
 		models = append(models, model)
