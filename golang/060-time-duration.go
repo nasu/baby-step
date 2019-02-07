@@ -23,6 +23,10 @@ func main() {
 	fmt.Println(time.Duration(float64(time.Millisecond) * 0.000001).String())
 	fmt.Println(time.Duration(float64(time.Millisecond) * 0.001).String())
 	fmt.Println(time.Duration(float64(time.Millisecond) * 1.15).String())
+
+	d := int64(5)
+	//fmt.Println(time.Duration(time.Millisecond * d).String()) // mismatch type
+	fmt.Println(time.Duration(time.Millisecond * time.Duration(d)).String())
 }
 
 func trunc(elapsed time.Duration) {
