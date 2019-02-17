@@ -27,6 +27,56 @@ func main() {
 		panic(err)
 	}
 
+	diff(ctx, client)
+	nilInsert(ctx, client)
+}
+
+// time型にnilをインサートする方法
+func nilInsert(ctx context.Context, client *spanner.Client) {
+	_, err := client.ReadWriteTransaction(ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
+		// nil を指定するとエラーになる
+		// use T(nil), not nil
+		// これは他の型の場合でも同様
+		/*
+			_, err := txn.Update(ctx, spanner.Statement{
+				SQL: `INSERT INTO Singers (SingerId, FirstName, LastName, CreatedAt) VALUES (@SingerId, @FirstName, @LastName, @CreatedAt)`,
+				Params: map[string]interface{}{
+					"SingerId":  999,
+					"FirstName": "sample",
+					"LastName":  "sample",
+					"CreatedAt": nil,
+				},
+			})
+		*/
+		/*
+			_, err := txn.Update(ctx, spanner.Statement{
+				SQL: `INSERT INTO Singers (SingerId, FirstName, LastName) VALUES (@SingerId, @FirstName, @LastName)`,
+				Params: map[string]interface{}{
+					"SingerId":  999,
+					"FirstName": "sample",
+					"LastName":  "sample",
+				},
+			})
+		*/
+		_, err := txn.Update(ctx, spanner.Statement{
+			SQL: `INSERT INTO Singers (SingerId, FirstName, LastName, CreatedAt) VALUES (@SingerId, @FirstName, @LastName, @CreatedAt)`,
+			Params: map[string]interface{}{
+				"SingerId":  998,
+				"FirstName": "sample",
+				"LastName":  "sample",
+				"CreatedAt": spanner.NullTime{},
+			},
+		})
+
+		return err
+	})
+	if err != nil {
+		panic(err)
+	}
+}
+
+// time型をクエリに渡して比較できるかどうか
+func diff(ctx context.Context, client *spanner.Client) {
 	ro := client.ReadOnlyTransaction()
 	now := time.Now().UTC()
 	fmt.Println("TIME:", now)

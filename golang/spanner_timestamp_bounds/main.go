@@ -49,7 +49,7 @@ func readOnlyTransaction(ctx context.Context, client *spanner.Client, f func(ctx
 
 	var ro *spanner.ReadOnlyTransaction
 	if useTimestampBound {
-		ro = client.Single().WithTimestampBound(spanner.MaxStaleness(30 * time.Second))
+		ro = client.ReadOnlyTransaction().WithTimestampBound(spanner.ExactStaleness(30 * time.Second))
 	} else {
 		ro = client.ReadOnlyTransaction()
 	}
