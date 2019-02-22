@@ -101,16 +101,23 @@ func confirm(ctx context.Context, client *spanner.Client, ts time.Time) {
 }
 
 func insertWithDML(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
+	// DML を使う場合は、同一カラムで PENDING_COMMIT_TIMESTAMP()と自分で指定を併用はできない
+	// PENDING_COMMIT_TIMESTAMP()を使うなら、そのクエリの中ではすべてのレコードに適用するか
+	// 全てで使わないかしかできない
+	// 下記でいうと1つ目のCreatedAtだけPENDING...として2つ目を@CreatedAtとして外から渡したり
+	// CURRENT_TIMESTAMP() を使ったりはできない
 	stmt := spanner.Statement{
 		SQL: `INSERT PendingCommitTimestampTable (Id, Name, CreatedAt, UpdatedAt)
         VALUES
-        (@Id1, @Name, PENDING_COMMIT_TIMESTAMP(), PENDING_COMMIT_TIMESTAMP()),
-        (@Id2, @Name, PENDING_COMMIT_TIMESTAMP(), PENDING_COMMIT_TIMESTAMP())
+        (@Id1, @Name, PENDING_COMMIT_TIMESTAMP(), @UpdatedAt),
+        (@Id2, @Name, PENDING_COMMIT_TIMESTAMP(), @UpdatedAt)
         `,
 		Params: map[string]interface{}{
 			"Id1":  generateId(),
 			"Id2":  generateId(),
 			"Name": "foobar",
+			//"UpdatedAt": time.Now().Add(time.Hour * 24), // 未来は指定できない
+			"UpdatedAt": time.Now().Add(-time.Hour * 24),
 		},
 	}
 	if _, err := txn.Update(ctx, stmt); err != nil {
@@ -121,9 +128,10 @@ func insertWithDML(ctx context.Context, txn *spanner.ReadWriteTransaction) error
 
 func insertWithMutation(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
 	cols := []string{`Id`, `Name`, `CreatedAt`, `UpdatedAt`}
+	// Mutation を使う場合は、commit_timestampと自分で指定する場合を併用できる
 	txn.BufferWrite([]*spanner.Mutation{
 		spanner.Insert(`PendingCommitTimestampTable`, cols, []interface{}{generateId(), "barfoo", spanner.CommitTimestamp, spanner.CommitTimestamp}),
-		spanner.Insert(`PendingCommitTimestampTable`, cols, []interface{}{generateId(), "barfoo", spanner.CommitTimestamp, spanner.CommitTimestamp}),
+		spanner.Insert(`PendingCommitTimestampTable`, cols, []interface{}{generateId(), "barfoo", spanner.CommitTimestamp, time.Time{}}),
 	})
 	return nil
 }
