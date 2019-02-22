@@ -11,6 +11,9 @@ import (
 )
 
 func main() {
+	fmt.Println(randomString(15))
+	fmt.Println(randomString(15))
+
 	seed, err := crand.Int(crand.Reader, big.NewInt(math.MaxInt64))
 	if err != nil {
 		panic(err)
@@ -22,4 +25,13 @@ func main() {
 	}
 	fmt.Println(rng.Int63n(1))
 	//fmt.Println(rng.Int63n(0)) // panic
+}
+
+func randomString(n int) string {
+	l := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = l[rand.Intn(len(l))]
+	}
+	return string(b)
 }

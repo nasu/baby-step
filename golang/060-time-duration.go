@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"time"
 )
 
@@ -27,6 +28,15 @@ func main() {
 	d := int64(5)
 	//fmt.Println(time.Duration(time.Millisecond * d).String()) // mismatch type
 	fmt.Println(time.Duration(time.Millisecond * time.Duration(d)).String())
+
+	fmt.Println(time.Duration(time.Hour * 24 * 365 * 292).String())
+	//fmt.Println(time.Duration(time.Hour * 24 * 365 * 293).String()) // overflow
+	e, _ := time.Parse(time.RFC3339, "9999-12-31T23:59:59Z")
+	fmt.Println(e.Sub(s).String())
+	fmt.Println(int64(time.Since(e)))
+	fmt.Println(int64(time.Until(e)))
+	fmt.Println(math.MaxInt64)
+
 }
 
 func trunc(elapsed time.Duration) {
