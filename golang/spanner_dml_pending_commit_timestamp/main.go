@@ -26,7 +26,8 @@ func useDML(ctx context.Context, sig string) {
 		panic(err)
 	}
 	ts, err := client.ReadWriteTransaction(ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
-		if err := insertWithDML(ctx, txn); err != nil {
+		ids := [2]string{generateId(), generateId()}
+		if err := insertWithDML(ctx, txn, ids); err != nil {
 			return errors.Wrap(err, "first insertWithDML")
 		}
 		// Error: Column CreatedAt cannot be accessed because it, or its associated index, has a pending CommitTimestamp
@@ -35,6 +36,9 @@ func useDML(ctx context.Context, sig string) {
 		       return errors.Wrap(err, "second insertWithDML")
 		   }
 		*/
+		if err := updateWithDML(ctx, txn, ids); err != nil {
+			return errors.Wrap(err, "updateWithDML")
+		}
 		fmt.Println(time.Now(), "In transaction")
 		time.Sleep(time.Second)
 		return nil
@@ -100,7 +104,7 @@ func confirm(ctx context.Context, client *spanner.Client, ts time.Time) {
 	fmt.Println(ts)
 }
 
-func insertWithDML(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
+func insertWithDML(ctx context.Context, txn *spanner.ReadWriteTransaction, ids [2]string) error {
 	// DML を使う場合は、同一カラムで PENDING_COMMIT_TIMESTAMP()と自分で指定を併用はできない
 	// PENDING_COMMIT_TIMESTAMP()を使うなら、そのクエリの中ではすべてのレコードに適用するか
 	// 全てで使わないかしかできない
@@ -113,11 +117,78 @@ func insertWithDML(ctx context.Context, txn *spanner.ReadWriteTransaction) error
         (@Id2, @Name, PENDING_COMMIT_TIMESTAMP(), @UpdatedAt)
         `,
 		Params: map[string]interface{}{
-			"Id1":  generateId(),
-			"Id2":  generateId(),
+			"Id1":  ids[0],
+			"Id2":  ids[1],
 			"Name": "foobar",
 			//"UpdatedAt": time.Now().Add(time.Hour * 24), // 未来は指定できない
 			"UpdatedAt": time.Now().Add(-time.Hour * 24),
+		},
+	}
+	if _, err := txn.Update(ctx, stmt); err != nil {
+		return err
+	}
+	return nil
+}
+
+func updateWithDML(ctx context.Context, txn *spanner.ReadWriteTransaction, ids [2]string) error {
+	var stmt spanner.Statement
+	// 同一トランザクション内で同じテーブルに2回 PENDING_COMMIT_TIMESTAMP()を走らせることはできない
+	/*
+		for _, id := range ids {
+			fmt.Println("UPDATE... id=", id)
+			stmt = spanner.Statement{
+				SQL: `UPDATE PendingCommitTimestampTable SET Name=@Name, UpdatedAt=PENDING_COMMIT_TIMESTAMP() WHERE Id=@Id`,
+				Params: map[string]interface{}{
+					"Id":   id,
+					"Name": "barfoo",
+				},
+			}
+			if _, err := txn.Update(ctx, stmt); err != nil {
+				return err
+			}
+		}
+	*/
+	// INSERT で PENDING_COMMIT_TIMESTAMP() を使っているカラムに対しては同一トランザクション内でUPDATEできない
+	/*
+		stmt = spanner.Statement{
+			SQL: `UPDATE PendingCommitTimestampTable SET Name=@Name, CreatedAt=PENDING_COMMIT_TIMESTAMP() WHERE 1=1`,
+			Params: map[string]interface{}{
+				"Name": "barfoo",
+			},
+		}
+		if _, err := txn.Update(ctx, stmt); err != nil {
+			return err
+		}
+	*/
+	// 未来の時間を挿入はできない
+	/*
+		stmt = spanner.Statement{
+			SQL: `UPDATE PendingCommitTimestampTable SET Name=@Name, UpdatedAt=@UpdatedAt WHERE 1=1`,
+			Params: map[string]interface{}{
+				"Name":      "barfoo",
+				"UpdatedAt": time.Now().Add(time.Second),
+			},
+		}
+		if _, err := txn.Update(ctx, stmt); err != nil {
+			return err
+		}
+	*/
+	// 事前に適当な値を詰めて、その後commit_timestamp()を使う分にはOK
+	stmt = spanner.Statement{
+		SQL: `UPDATE PendingCommitTimestampTable SET Name=@Name, UpdatedAt=@UpdatedAt WHERE 1=1`,
+		Params: map[string]interface{}{
+			"Name":      "barfoo",
+			"UpdatedAt": time.Now().Add(-time.Second),
+		},
+	}
+	if _, err := txn.Update(ctx, stmt); err != nil {
+		return err
+	}
+	// INSERTでPENDING_COMMIT_TIMESTAMP()を使っていないカラムに対して まとめて UPDATE する分には可能
+	stmt = spanner.Statement{
+		SQL: `UPDATE PendingCommitTimestampTable SET Name=@Name, UpdatedAt=PENDING_COMMIT_TIMESTAMP() WHERE 1=1`,
+		Params: map[string]interface{}{
+			"Name": "barfoo",
 		},
 	}
 	if _, err := txn.Update(ctx, stmt); err != nil {
