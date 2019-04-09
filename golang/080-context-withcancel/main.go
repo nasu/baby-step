@@ -16,6 +16,7 @@ func main() {
 	go tree(ctx, 1)
 	profile("end first tree")
 
+	time.Sleep(time.Second * 2)
 	cancel()
 	profile("end cancel")
 	time.Sleep(time.Second * 2)
@@ -30,12 +31,14 @@ func tree(ctx context.Context, i int) {
 	go tree(ctx2, i*10+1)
 	go tree(ctx2, i*10+2)
 	defer cancel()
-	a := make([]int, 0)
+	profile(fmt.Sprintf("wait cancel (%6d)", i))
+	a := make([]int, int(math.Pow(40, math.Log10(float64(i)))))
+	a[0] = 1
 	for {
-		a = append(a, 1)
 		select {
 		case <-ctx.Done():
-			profile(fmt.Sprintf("end cancel (%s %6d)", ctx.Err(), i))
+			profile(fmt.Sprintf("end  cancel (%s %6d)", ctx.Err(), i))
+			//a = nil
 			return
 		}
 	}
